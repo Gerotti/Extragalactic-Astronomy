@@ -1,0 +1,61 @@
+import numpy as np
+from scipy.integrate import quad
+from scipy.constants import c
+
+#Parameters
+#Omega_baryons = 0.0486
+#Omega_Lambda = 0.685
+#Omega_DarkMatter = 0.264
+
+Omega_baryons = 0.05
+Omega_Lambda = 0
+Omega_DarkMatter = 0.95
+
+#Constants
+c_km_s = c/1000  #km/s
+z_rec = 1100
+H0 = 70  #km/s/Mpc
+Omega_gamma = 5.38e-5  #Photon density today
+z = 0.35 #BAO
+
+#Sound horizon r_s(z_rec)
+def sound_horizon(Omega_baryons, Omega_Lambda, Omega_DarkMatter):
+    Omega_m = Omega_baryons + Omega_DarkMatter
+    Omega_r = Omega_gamma
+    r_s, _ = quad(integrand, z_rec, np.inf, args=(Omega_baryons, Omega_m, Omega_r, Omega_Lambda))
+    return r_s  #Mpc
+
+#Integrand for the sound horizon r_s
+def integrand(z, Omega_baryons, Omega_m, Omega_r, Omega_Lambda):
+    c_s = sound_speed(z, Omega_baryons)
+    H_z = Hubble_parameter(z, Omega_m, Omega_r, Omega_Lambda)
+    return c_s / H_z
+
+#Hubble parameter H(z)
+def Hubble_parameter(z, Omega_m, Omega_r, Omega_Lambda):
+    return H0 * np.sqrt(Omega_r * (1 + z)**4 + Omega_m * (1 + z)**3 + Omega_Lambda)
+
+#Sound speed in the photon-baryon plasma c_s(z)
+def sound_speed(z, Omega_baryons):
+    return c_km_s / np.sqrt(3 * (1 + 3 * Omega_baryons / (4 * Omega_gamma * (1 + z))))
+
+
+#Angular diameter distance D_A(z)
+def angular_diameter_distance(z, h):
+    def integrand(z):
+        return 1 / np.sqrt(Omega_m * (1 + z)**3)  #SCDM model
+    result, _ = quad(integrand, 0, z)
+    return c / (100 * h) * result / (1 + z)
+
+#Angular size of BAO
+def angular_bao_size(Omega_baryons, Omega_Lambda, Omega_DarkMatter, h, z=0.35):
+    rs = sound_horizon(Omega_baryons, Omega_Lambda, Omega_DarkMatter)  #Comoving sound horizon at the drag epoch
+    DA = angular_diameter_distance(z, h)  #Angular diameter distance at redshift z
+    theta_bao = np.degrees(rs / DA)
+    return theta_bao, rs
+
+theta_bao, rs = angular_bao_size(Omega_baryons, Omega_Lambda, Omega_DarkMatter, h=H0/100, z)
+r_s = sound_horizon(Omega_baryons, Omega_Lambda, Omega_DarkMatter)
+
+print(f"BAO size at recombination: {r_s:.1f} Mpc")
+print(f"Angular size of BAO at z = {z}: {theta_bao:.4f} degrees")
